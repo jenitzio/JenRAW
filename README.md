@@ -35,13 +35,9 @@ Some Linux distributions may require AppImage/FUSE support. The provided build i
 
 ## Features
 
-Add a short, accurate list of the app's features here. For example:
-
-- Describe the image formats the app supports.
-- Describe the editing or viewing tools currently available.
-- Note any limitations users should know about.
-
-Do not list features that are not implemented in the current version.
+ - This RAW editor supports Canon files, Jpegs, PNGs and WebP files.
+ - It does NOT support internal Cr2/3 editing, but rather creates a seperate file. 
+ - It includes advanced editing options, and customisable UX and UI.
 
 ## Repository contents
 
