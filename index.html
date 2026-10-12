@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>RAW Studio — Digital Photo Workspace</title>
+    <title>RAW Studio Pro — Advanced Photo Workspace</title>
     <meta
       name="description"
       content="A comprehensive DPP-inspired photo workspace with non-destructive editing, recipes, batch export and customizable panels."
@@ -1418,6 +1418,34 @@
           scroll-behavior: auto !important;
         }
       }
+
+      /* Studio Pro design tokens extend the supplied desktop design system. */
+      :root { --scope-red:#ff6778; --scope-green:#57cf9b; --scope-blue:#69a7ff; --studio-font:"Segoe UI"; }
+      body { font-family:var(--studio-font),Arial,sans-serif; }
+      .brand { font-size:16px; }
+      .scope-bar { display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:9px;margin:0 0 8px; }
+      .scope-bar .tb { min-height:22px; }
+      .scope-stats { color:var(--muted);font-size:9px;margin-top:7px;line-height:1.5;white-space:normal; }
+      .precision-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+      .precision-grid label { color:var(--muted);font-size:10px; }
+      .precision-grid input { display:block;width:100%;margin-top:5px; }
+      .inspector-search { padding:10px 12px;border-bottom:1px solid var(--border); }
+      .inspector-search input { width:100%;background:var(--input);color:var(--text);border:1px solid var(--border);height:29px;padding:6px 9px;border-radius:var(--corner); }
+      .organiser-row { display:flex;align-items:center;gap:5px;margin:7px 0; }
+      .organiser-row label { flex:1;min-width:0;font-size:10px; }
+      .organiser-row .icon { padding:2px 7px; }
+      .command-dialog { width:520px;max-width:calc(100vw - 32px);background:var(--panel);border:1px solid var(--border);padding:16px;box-shadow:var(--shadow);border-radius:var(--corner); }
+      .command-dialog>input { width:100%;padding:12px;background:var(--input);color:var(--text);border:1px solid var(--border); }
+      .command-list { display:flex;flex-direction:column;gap:4px;max-height:380px;overflow:auto;margin-top:10px; }
+      .command-list .tb { text-align:left;padding:10px; }
+      .sec[hidden] { display:none!important; }
+      .sec>h4[draggable] { cursor:grab; }
+      #tabs .tab { flex-basis:25%; }
+      #panes { min-height:0; }
+      #curve { touch-action:none; }
+      .pane.search-results { overflow:visible;flex:none; }
+      #side:has(.search-results) #panes { overflow:auto; }
+      @media(max-width:560px) { #tabs { overflow-x:auto; } #tabs .tab { flex:0 0 70px; } .inspector-search { padding:6px 12px; } }
     </style>
   </head>
   <body>
@@ -1428,8 +1456,8 @@
           <span>■</span>
         </div>
         <div class="brand">
-          RAW STUDIO
-          <small>DIGITAL PHOTO WORKSPACE</small>
+          RAW STUDIO PRO
+          <small>PRECISION PHOTO WORKSPACE</small>
         </div>
         <div class="top-divider"></div>
         <span class="project-title" id="fname">Untitled session</span>
@@ -1754,6 +1782,12 @@
         [1, 1],
       ];
       const DEF = () => ({
+        levelBlack: 0, levelWhite: 255, gamma: 1, outputBlack: 0, outputWhite: 255,
+        texture: 0, sharpThreshold: 0, midHue: 180, midSat: 0, gradeBalance: 0,
+        monoR: 30, monoG: 59, monoB: 11,
+        local0: { enabled:false, kind:0, x:50, y:50, radius:40, feather:65, angle:0, low:0, high:100, invert:false, exposure:0, contrast:0, saturation:0, warmth:0 },
+        local1: { enabled:false, kind:0, x:50, y:50, radius:40, feather:65, angle:0, low:0, high:100, invert:false, exposure:0, contrast:0, saturation:0, warmth:0 },
+        local2: { enabled:false, kind:0, x:50, y:50, radius:40, feather:65, angle:0, low:0, high:100, invert:false, exposure:0, contrast:0, saturation:0, warmth:0 },
         exposure: 0,
         contrast: 0,
         highlights: 0,
@@ -2330,6 +2364,8 @@
           shg = 1 / (1 + sh * 0.8),
           cg = 1 + Math.max(c, 0) * 1.6;
         return (x) => {
+          x = clamp((x - s.levelBlack / 255) / Math.max(1 / 255, (s.levelWhite - s.levelBlack) / 255));
+          x = Math.pow(x, 1 / s.gamma);
           x *= ev;
           x = (x - lo) / (top - lo);
           if (hi < 0 && x > 0.5) x = 0.5 + (x - 0.5) / (1 + -hi * 2 * (x - 0.5));
@@ -2358,7 +2394,7 @@
             let v = f((i / 255) * mul[ch]);
             v = cr[Math.round(v * 1024)];
             v = cc[ch][Math.round(v * 1024)];
-            L[i] = v;
+            L[i] = s.outputBlack/255 + v * (s.outputWhite-s.outputBlack)/255;
           }
           return L;
         });
@@ -2559,7 +2595,7 @@
             }
           }
           if (s.mono) {
-            const L = 0.299 * r + 0.587 * g + 0.114 * b;
+            const L = clamp((s.monoR*r+s.monoG*g+s.monoB*b)/100);
             r = g = b = L;
           }
           if (spS || spH) {
@@ -2569,6 +2605,10 @@
             r += (cS[0] - 0.5) * ws + (cH[0] - 0.5) * wh;
             g += (cS[1] - 0.5) * ws + (cH[1] - 0.5) * wh;
             b += (cS[2] - 0.5) * ws + (cH[2] - 0.5) * wh;
+          }
+          if (s.midSat) {
+            const L=clamp(.299*r+.587*g+.114*b+s.gradeBalance/200), weight=4*L*(1-L)*s.midSat/100*.25, color=hueRGB(s.midHue);
+            r+=(color[0]-.5)*weight;g+=(color[1]-.5)*weight;b+=(color[2]-.5)*weight;
           }
           d[i] = r * 255;
           d[i + 1] = g * 255;
@@ -2633,12 +2673,16 @@
             d[i + 2] += dl;
           }
         }
+        if (s.texture) {
+          const L=lum(), B=boxBlur(L,w,h,Math.max(1,2*scale)), amount=s.texture/100;
+          for(let p=0,i=0;p<n;p++,i+=4){const detail=(L[p]-B[p])*amount;d[i]+=detail;d[i+1]+=detail;d[i+2]+=detail;}
+        }
         if (s.sharpen > 0) {
           const L = lum(),
             B = boxBlur(L, w, h, Math.max(1, s.sharpRadius * scale)),
             a = (s.sharpen / 100) * 1.8;
           for (let p = 0, i = 0; p < n; p++, i += 4) {
-            const dl = (L[p] - B[p]) * a;
+            const dl = Math.abs(L[p]-B[p]) >= s.sharpThreshold ? (L[p] - B[p]) * a : 0;
             d[i] += dl;
             d[i + 1] += dl;
             d[i + 2] += dl;
@@ -2734,12 +2778,12 @@
           const bef = render(active.preview, beforeOf(active.s));
           cx.save();
           cx.beginPath();
-          cx.rect(0, 0, cv.width / 2, cv.height);
+          cx.rect(0, 0, cv.width * (prefs.comparePosition === undefined ? .5 : prefs.comparePosition/100), cv.height);
           cx.clip();
           cx.drawImage(bef, 0, 0);
           cx.restore();
           cx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--text");
-          cx.fillRect(cv.width / 2 - 1, 0, 2, cv.height);
+          cx.fillRect(cv.width * (prefs.comparePosition === undefined ? .5 : prefs.comparePosition/100) - 1, 0, 2, cv.height);
         }
       }
       let histData = null;
@@ -3475,7 +3519,7 @@
         });
         [...th.options].forEach(
           (o) =>
-            (o.textContent = {
+            (o.value = o.value, o.textContent = {
               dpp: "Canon DPP (dark)",
               light: "Light",
               midnight: "Midnight",
@@ -4485,6 +4529,7 @@
         const allowed = flatEdits(DEF()),
           out = {};
         const ranges = {
+          levelBlack:[0,250],levelWhite:[5,255],gamma:[.2,3],outputBlack:[0,255],outputWhite:[0,255],sharpThreshold:[0,50],midHue:[0,359],midSat:[0,100],monoR:[-100,200],monoG:[-100,200],monoB:[-100,200],
           exposure: [-5, 5],
           angle: [-45, 45],
           sharpRadius: [0.5, 3],
@@ -4524,7 +4569,8 @@
             out[key] = v;
           } else {
             if (typeof v !== "number" || !Number.isFinite(v)) throw new Error("Invalid " + key);
-            const range = ranges[key] || [-100, 100];
+            const localRange=key.startsWith('local') ? ({kind:[0,2],x:[0,100],y:[0,100],radius:[1,100],feather:[1,100],angle:[-180,180],low:[0,100],high:[0,100],exposure:[-5,5]}[key.split('.')[1]]) : null;
+            const range = localRange || ranges[key] || [-100, 100];
             out[key] = clamp(v, ...range);
           }
         }
@@ -5090,6 +5136,173 @@
           if (!b.title) b.title = b.textContent.trim();
         });
       }
+
+      // Studio Pro: browser-only, offline, Chromium 109-compatible extensions.
+      const ADV_PREFS = {
+        chartMode: 'Histogram', chartScale: 'Linear', chartStyle: 'Filled', chartGrid: true,
+        chartOpacity: 65, chartHeight: 112, chartRed: '#ff6778', chartGreen: '#57cf9b',
+        chartBlue: '#69a7ff', chartLuma: '#e5e7eb', chartChannels: 'RGB', curveGrid: 4,
+        curveSnap: false, curveWidth: 3, curvePoints: 7, curveOverlay: true,
+        fontFamily: 'Segoe UI', customPalette: {}, panelOrder: {}, hiddenSections: [],
+        comparePosition: 50, maskOverlay: false
+      };
+      const baseValidatePrefs = validatePrefs;
+      validatePrefs = function(p) {
+        const out = baseValidatePrefs(p);
+        p = p || {};
+        Object.keys(ADV_PREFS).forEach(function(k) { out[k] = clone(ADV_PREFS[k]); });
+        const numbers = {chartOpacity:[10,100],chartHeight:[60,240],curveGrid:[2,12],curveWidth:[1,8],curvePoints:[3,12],comparePosition:[0,100]};
+        Object.keys(numbers).forEach(function(k) { if(Number.isFinite(p[k])) out[k]=clamp(p[k],numbers[k][0],numbers[k][1]); });
+        ['chartGrid','curveSnap','curveOverlay','maskOverlay'].forEach(function(k){if(typeof p[k]==='boolean')out[k]=p[k];});
+        const choices = {chartMode:['Histogram','Waveform','RGB parade','Vectorscope'],chartScale:['Linear','Logarithmic','Square root'],chartStyle:['Filled','Line','Bars'],chartChannels:['RGB','Luminance','Red','Green','Blue'],fontFamily:['Segoe UI','Arial','Tahoma','Verdana','monospace']};
+        Object.keys(choices).forEach(function(k){if(choices[k].includes(p[k]))out[k]=p[k];});
+        ['chartRed','chartGreen','chartBlue','chartLuma'].forEach(function(k){if(/^#[0-9a-f]{6}$/i.test(p[k]))out[k]=p[k];});
+        if(p.customPalette && typeof p.customPalette==='object') Object.keys(p.customPalette).forEach(function(k){if(['panel','panel2','head','border','text','muted','input','library'].includes(k)&&/^#[0-9a-f]{6}$/i.test(p.customPalette[k]))out.customPalette[k]=p.customPalette[k];});
+        if(p.panelOrder&&typeof p.panelOrder==='object')Object.keys(p.panelOrder).forEach(function(k){if(/^p-[a-z]+$/.test(k)&&Array.isArray(p.panelOrder[k]))out.panelOrder[k]=p.panelOrder[k].filter(function(v){return typeof v==='string';});});
+        if(Array.isArray(p.hiddenSections))out.hiddenSections=p.hiddenSections.filter(function(v){return typeof v==='string';});
+        return out;
+      };
+      Object.assign(prefs,validatePrefs(prefs));
+      const proApplyPrefs = applyPrefs;
+      applyPrefs = function(){
+        proApplyPrefs();
+        const root=document.documentElement.style;
+        root.setProperty('--studio-font',prefs.fontFamily);
+        ['panel','panel2','head','border','text','muted','input','library'].forEach(function(k){document.body.style.removeProperty('--'+k);});
+        Object.keys(prefs.customPalette).forEach(function(k){document.body.style.setProperty('--'+k,prefs.customPalette[k]);});
+        $('#hist').style.height=prefs.chartHeight+'px';
+        document.querySelectorAll('.sec').forEach(function(s){s.hidden=prefs.hiddenSections.includes(s.dataset.section);});
+        Object.keys(prefs.panelOrder).forEach(function(k){const p=document.getElementById(k);if(p)prefs.panelOrder[k].forEach(function(id){const s=Array.from(p.children).find(function(c){return c.dataset.section===id;});if(s)p.appendChild(s);});});
+        if(typeof syncAdvancedUI==='function')syncAdvancedUI();
+        schedule();
+      };
+      const advancedControls=[];
+      function settingRange(parent,label,key,min,max){const previous=wp;wp=parent;prefSlider(label,key,min,max);wp=previous;const r=parent.lastChild;advancedControls.push(function(){r.querySelectorAll('input').forEach(function(i){i.value=prefs[key];});});}
+      function settingCheck(parent,label,key){const previous=wp;wp=parent;const c=prefCheck(label,key);wp=previous;advancedControls.push(function(){c.checked=prefs[key];});}
+      function settingSelect(parent,label,key,values){const s=selectRow(parent,label,values,function(v){prefs[key]=v;applyPrefs();drawCurve();});s.value=prefs[key];advancedControls.push(function(){s.value=prefs[key];});return s;}
+      function settingColor(parent,label,key){const r=document.createElement('div');r.className='row two';const l=document.createElement('label');l.textContent=label;const i=document.createElement('input');i.type='color';i.setAttribute('aria-label',label);i.value=prefs[key];i.oninput=function(){prefs[key]=i.value;applyPrefs();drawCurve();};r.append(l,i);parent.append(r);advancedControls.push(function(){i.value=prefs[key];});}
+      function syncAdvancedUI(){advancedControls.forEach(function(f){f();});}
+      const scopeBar=document.createElement('div');scopeBar.className='scope-bar';scopeBar.innerHTML='<span>LIVE SCOPES</span><button class="tb icon" title="Configure charts" aria-label="Configure charts">⚙</button>';
+      $('#histWrap').prepend(scopeBar);scopeBar.lastChild.onclick=function(){showTab('settings');chartSettings.parentElement.scrollIntoView({block:'start'});};
+      const chartSettings=sec('settings','Charts & analysis');
+      settingSelect(chartSettings,'Scope','chartMode',['Histogram','Waveform','RGB parade','Vectorscope']);
+      settingSelect(chartSettings,'Channels','chartChannels',['RGB','Luminance','Red','Green','Blue']);
+      settingSelect(chartSettings,'Scale','chartScale',['Linear','Logarithmic','Square root']);
+      settingSelect(chartSettings,'Rendering','chartStyle',['Filled','Line','Bars']);
+      settingRange(chartSettings,'Scope height','chartHeight',60,240);
+      settingRange(chartSettings,'Opacity','chartOpacity',10,100);
+      settingCheck(chartSettings,'Chart grid','chartGrid');
+      [['Red channel','chartRed'],['Green channel','chartGreen'],['Blue channel','chartBlue'],['Luminance','chartLuma']].forEach(function(v){settingColor(chartSettings,v[0],v[1]);});
+      const stats=document.createElement('div');stats.className='scope-stats';$('#histWrap').append(stats);
+      const baseDrawHist=drawHist;
+      drawHist=function(out){
+        baseDrawHist(out);
+        const canvas=$('#hist'),x=canvas.getContext('2d'),W=canvas.width=600,H=canvas.height=240;
+        x.clearRect(0,0,W,H);
+        if(!out)return;
+        const cols=[prefs.chartRed,prefs.chartGreen,prefs.chartBlue,prefs.chartLuma];
+        if(prefs.chartGrid){x.strokeStyle=getComputedStyle(document.body).getPropertyValue('--border');x.lineWidth=1;for(let j=1;j<4;j++){x.beginPath();x.moveTo(0,H*j/4);x.lineTo(W,H*j/4);x.moveTo(W*j/4,0);x.lineTo(W*j/4,H);x.stroke();}}
+        const channels=prefs.chartChannels==='RGB'?[0,1,2]:[{Luminance:3,Red:0,Green:1,Blue:2}[prefs.chartChannels]];
+        const scale=function(v){return prefs.chartScale==='Logarithmic'?Math.log(1+v):prefs.chartScale==='Square root'?Math.sqrt(v):v;};
+        if(prefs.chartMode==='Histogram'){
+          let max=1;channels.forEach(function(ch){for(let b=1;b<255;b++)max=Math.max(max,scale(histData[ch][b]));});
+          channels.forEach(function(ch){x.fillStyle=x.strokeStyle=cols[ch];x.globalAlpha=prefs.chartOpacity/100;x.lineWidth=2;x.beginPath();x.moveTo(0,H);for(let b=0;b<256;b++){const px=b/255*W,py=H-Math.min(1,scale(histData[ch][b])/max)*(H-8);if(prefs.chartStyle==='Bars')x.fillRect(px,py,W/256,H-py);else x.lineTo(px,py);}if(prefs.chartStyle==='Filled'){x.lineTo(W,H);x.closePath();x.fill();}else if(prefs.chartStyle==='Line')x.stroke();});
+        } else {
+          const small=scaled(out,260),pixels=small.getContext('2d').getImageData(0,0,small.width,small.height).data;
+          x.globalAlpha=Math.max(.08,prefs.chartOpacity/100*.32);
+          if(prefs.chartMode==='Vectorscope'){
+            x.globalAlpha=1;x.strokeStyle=getComputedStyle(document.body).getPropertyValue('--border');[.25,.5,.9].forEach(function(r){x.beginPath();x.arc(W/2,H/2,r*H/2,0,Math.PI*2);x.stroke();});
+            ['R','Y','G','C','B','M'].forEach(function(v,j){x.fillStyle=cols[j%3];const a=j*Math.PI/3;x.fillText(v,W/2+Math.cos(a)*H*.46,H/2-Math.sin(a)*H*.46);});x.globalAlpha=prefs.chartOpacity/100*.4;
+          }
+          for(let p=0,i=0;i<pixels.length;i+=4,p++){
+            const r=pixels[i],g=pixels[i+1],b=pixels[i+2],lum=.299*r+.587*g+.114*b;
+            if(prefs.chartMode==='Vectorscope'){x.fillStyle='rgb('+r+','+g+','+b+')';x.fillRect(W/2+(r-lum)/255*H*.7,H/2-(b-lum)/255*H*.7,2,2);}
+            else channels.forEach(function(ch,j){const value=[r,g,b,lum][ch];let px=(p%small.width)/small.width*W;if(prefs.chartMode==='RGB parade')px=px/channels.length+j*W/channels.length;x.fillStyle=cols[ch];x.fillRect(px,H-value/255*(H-4),2,2);});
+          }
+        }
+        x.globalAlpha=1;
+        const counts=histData[3],total=counts.reduce(function(a,b){return a+b;},0);let sum=0,clipLow=0,clipHigh=0;for(let i=0;i<256;i++){sum+=i*counts[i];if(i<2)clipLow+=counts[i];if(i>253)clipHigh+=counts[i];}
+        stats.textContent='MEAN '+(sum/(total||1)).toFixed(1)+'   •   BLACK '+(clipLow/(total||1)*100).toFixed(1)+'%   •   WHITE '+(clipHigh/(total||1)*100).toFixed(1)+'%';
+      };
+      // Precision curve editor uses the original monotone interpolation by default.
+      let selectedPoint=0;
+      const curveTools=sec('curves','Precision points');
+      curveTools.innerHTML='<div class="row two"><label>Control point</label><select id="pointSelect" aria-label="Control point"></select></div><div class="precision-grid"><label>Input<input id="pointX" type="number" min="0" max="255" step="1" aria-label="Point input"></label><label>Output<input id="pointY" type="number" min="0" max="255" step="1" aria-label="Point output"></label></div>';
+      const pointSelect=$('#pointSelect'),pointX=$('#pointX'),pointY=$('#pointY');
+      function syncPoint(){if(!active){pointSelect.innerHTML='';return;}const pts=active.s.curves[curCh];selectedPoint=clamp(selectedPoint,0,pts.length-1);pointSelect.innerHTML=pts.map(function(p,i){return '<option value="'+i+'">'+(i+1)+' · '+Math.round(p[0]*255)+' → '+Math.round(p[1]*255)+'</option>';}).join('');pointSelect.value=selectedPoint;pointX.value=Math.round(pts[selectedPoint][0]*255);pointY.value=Math.round(pts[selectedPoint][1]*255);}
+      pointSelect.onchange=function(){selectedPoint=+pointSelect.value;syncPoint();drawCurve();};
+      function updatePoint(){if(!active)return;const pts=clone(active.s.curves[curCh]),i=selectedPoint;pts[i]=[clamp(+pointX.value/255,i?pts[i-1][0]+.001:0,i<pts.length-1?pts[i+1][0]-.001:1),clamp(+pointY.value/255)];setVal('curves.'+curCh,pts);commit();drawCurve();}
+      pointX.onchange=pointY.onchange=updatePoint;
+      btn(curveTools,'＋ Add point',function(){const pts=clone(active.s.curves[curCh]);if(pts.length>=64)return toast('Maximum 64 points');let i=0;for(let j=1;j<pts.length-1;j++)if(pts[j+1][0]-pts[j][0]>pts[i+1][0]-pts[i][0])i=j;const a=pts[i],b=pts[i+1];pts.splice(i+1,0,[(a[0]+b[0])/2,(a[1]+b[1])/2]);selectedPoint=i+1;setVal('curves.'+curCh,pts);commit();drawCurve();});
+      btn(curveTools,'− Remove point',function(){const pts=clone(active.s.curves[curCh]);if(selectedPoint===0||selectedPoint===pts.length-1)return toast('Endpoints are retained');pts.splice(selectedPoint,1);setVal('curves.'+curCh,pts);commit();drawCurve();});
+      btn(curveTools,'↔ Mirror',function(){setVal('curves.'+curCh,active.s.curves[curCh].map(function(p){return [1-p[0],1-p[1]];}).reverse());commit();drawCurve();});
+      btn(curveTools,'↧ Export curve',function(){downloadBlob(new Blob([JSON.stringify({format:'raw-studio-curve',points:active.s.curves[curCh]},null,2)],{type:'application/json'}),'tone-curve.json');});
+      const curveFile=document.createElement('input');curveFile.type='file';curveFile.accept='.json';curveFile.hidden=true;document.body.append(curveFile);
+      btn(curveTools,'↥ Import curve',function(){curveFile.click();});curveFile.onchange=async function(){const f=curveFile.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(o.format!=='raw-studio-curve')throw Error('Invalid curve');const v=validateRecipe({['curves.'+curCh]:o.points});setVal('curves.'+curCh,v['curves.'+curCh]);commit();drawCurve();}catch(e){toast(e.message);}curveFile.value='';};
+      const graphSettings=sec('curves','Graph appearance');
+      settingRange(graphSettings,'Grid divisions','curveGrid',2,12);settingRange(graphSettings,'Line width','curveWidth',1,8);settingRange(graphSettings,'Point radius','curvePoints',3,12);settingCheck(graphSettings,'Snap points to grid','curveSnap');settingCheck(graphSettings,'Histogram overlay','curveOverlay');
+      const originalCurveDraw=drawCurve;
+      drawCurve=function(){const saved=histData;if(!prefs.curveOverlay)histData=null;originalCurveDraw();histData=saved;const c=$('#curve');if(!c)return;const x=c.getContext('2d'),W=c.width,H=c.height;
+        // Semantic graph colours follow the workspace rather than fixed dark colours.
+        x.clearRect(0,0,W,H);const style=getComputedStyle(document.body);x.strokeStyle=style.getPropertyValue('--border');x.lineWidth=1;for(let j=1;j<prefs.curveGrid;j++){x.beginPath();x.moveTo(j*W/prefs.curveGrid,0);x.lineTo(j*W/prefs.curveGrid,H);x.moveTo(0,j*H/prefs.curveGrid);x.lineTo(W,j*H/prefs.curveGrid);x.stroke();}
+        const col={rgb:prefs.chartLuma,r:prefs.chartRed,g:prefs.chartGreen,b:prefs.chartBlue}[curCh];if(histData&&prefs.curveOverlay){const h=histData[{rgb:3,r:0,g:1,b:2}[curCh]],max=Math.max(1,...h.slice(1,255));x.fillStyle=col;x.globalAlpha=.14;x.beginPath();x.moveTo(0,H);for(let i=0;i<256;i++)x.lineTo(i/255*W,H-Math.min(1,h[i]/max)*H*.9);x.lineTo(W,H);x.fill();x.globalAlpha=1;}
+        x.strokeStyle=style.getPropertyValue('--muted');x.setLineDash([6,8]);x.beginPath();x.moveTo(0,H);x.lineTo(W,0);x.stroke();x.setLineDash([]);if(!active)return;const pts=active.s.curves[curCh],lut=curveLUT(pts);x.strokeStyle=col;x.lineWidth=prefs.curveWidth;x.beginPath();for(let k=0;k<=1024;k+=4){const a=k/1024*W,b=H-lut[k]*H;k?x.lineTo(a,b):x.moveTo(a,b);}x.stroke();pts.forEach(function(p,i){x.beginPath();x.arc(p[0]*W,H-p[1]*H,prefs.curvePoints,0,Math.PI*2);x.fillStyle=i===selectedPoint?prefs.accent:col;x.fill();x.strokeStyle=style.getPropertyValue('--input');x.lineWidth=2;x.stroke();});syncPoint();};
+      const curve=$('#curve'),oldDown=curve.onpointerdown,oldMove=curve.onpointermove;
+      curve.onpointerdown=function(e){oldDown(e);if(dragPt>=0)selectedPoint=dragPt;drawCurve();};
+      curve.onpointermove=function(e){oldMove(e);if(active&&dragPt>=0&&prefs.curveSnap){const pts=clone(active.s.curves[curCh]),i=dragPt,n=prefs.curveGrid;pts[i]=[clamp(Math.round(pts[i][0]*n)/n,i?pts[i-1][0]+.01:0,i<pts.length-1?pts[i+1][0]-.01:1),Math.round(pts[i][1]*n)/n];setVal('curves.'+curCh,pts);drawCurve();}};
+      // Additional image operations, shared by preview, batch, thumbnails and export.
+      let extra=sec('basic','Levels & tonal range');
+      slider(extra,'levelBlack','Input black',0,250);slider(extra,'levelWhite','Input white',5,255,1,255);slider(extra,'gamma','Midtone gamma',.2,3,.05,1);slider(extra,'outputBlack','Output black',0,255);slider(extra,'outputWhite','Output white',0,255,1,255);
+      extra=sec('detail','Microcontrast');slider(extra,'texture','Texture',-100,100);slider(extra,'sharpThreshold','Edge threshold',0,50);
+      extra=sec('effects','Midtone grading');slider(extra,'midHue','Midtone hue',0,359,1,180);slider(extra,'midSat','Midtone amount',0,100);slider(extra,'gradeBalance','Tonal balance',-100,100);
+      extra=sec('color','Monochrome channel mixer');slider(extra,'monoR','Red weight',-100,200,1,30);slider(extra,'monoG','Green weight',-100,200,1,59);slider(extra,'monoB','Blue weight',-100,200,1,11);
+      // Three independent, non-destructive, parametric masks.
+      const maskTab=document.createElement('button');maskTab.className='tab';maskTab.textContent='Masks';maskTab.dataset.p='masks';maskTab.onclick=function(){showTab('masks');};$('#tabs').insertBefore(maskTab,$('#tabs').lastChild);TABS.push(['masks','Masks']);const maskPane=document.createElement('div');maskPane.className='pane';maskPane.id='p-masks';$('#panes').append(maskPane);
+      for(let j=0;j<3;j++){
+        const p=sec('masks','Local adjustment '+(j+1),j>0),key='local'+j;
+        check(p,key+'.enabled','Enable adjustment');
+        const kind=selectRow(p,'Mask geometry',['Radial','Linear','Luminance'],function(v){if(!active)return;setVal(key+'.kind',['Radial','Linear','Luminance'].indexOf(v));commit();});controls.push(function(){kind.value=['Radial','Linear','Luminance'][active?active.s[key].kind:0];});
+        slider(p,key+'.x','Centre X',0,100,1,50);slider(p,key+'.y','Centre Y',0,100,1,50);slider(p,key+'.radius','Size',1,100,1,40);slider(p,key+'.feather','Feather',1,100,1,65);slider(p,key+'.angle','Direction (°)',-180,180);slider(p,key+'.low','Luma minimum',0,100);slider(p,key+'.high','Luma maximum',0,100,1,100);check(p,key+'.invert','Invert mask');slider(p,key+'.exposure','Exposure (EV)',-5,5,.05);slider(p,key+'.contrast','Contrast',-100,100);slider(p,key+'.saturation','Saturation',-100,100);slider(p,key+'.warmth','Warmth',-100,100);
+        btn(p,'Reset adjustment',function(){setVal(key,DEF()[key]);commit();refreshUI();});
+      }
+      const maskView=sec('masks','Mask preview');settingCheck(maskView,'Show enabled mask overlays','maskOverlay');
+      const proRender=render;
+      render=function(src,s,opt){
+        const out=proRender(src,s,opt),w=out.width,h=out.height,x=out.getContext('2d');
+        const masks=[s.local0,s.local1,s.local2].filter(function(m){return m&&m.enabled;});
+        if(!masks.length)return out;
+        const img=x.getImageData(0,0,w,h),d=img.data;
+        for(let y=0,i=0;y<h;y++)for(let xx=0;xx<w;xx++,i+=4){let r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255;const luminance=.299*r+.587*g+.114*b;
+          masks.forEach(function(m){const dx=xx/w-m.x/100,dy=y/h-m.y/100,rad=m.radius/100,feather=m.feather/100;let t;
+            if(m.kind===0)t=clamp((1-Math.hypot(dx,dy)/rad)/feather);
+            else if(m.kind===1){const a=m.angle*Math.PI/180;t=clamp(.5+(dx*Math.cos(a)+dy*Math.sin(a))/(rad*feather*2));}
+            else {const low=Math.min(m.low,m.high)/100,high=Math.max(m.low,m.high)/100,f=Math.max(.005,feather*.2);t=clamp((luminance-low)/f)*clamp((high-luminance)/f);}
+            t=t*t*(3-2*t);if(m.invert)t=1-t;const gain=Math.pow(2,m.exposure),c=1+m.contrast/100,sat=1+m.saturation/100,L=.299*r+.587*g+.114*b;
+            const adjust=function(v,ch){let a=((L+(v-L)*sat)*gain-.5)*c+.5;a+=(ch===0?1:ch===2?-1:0)*m.warmth/100*.12;return v+(a-v)*t;};r=adjust(r,0);g=adjust(g,1);b=adjust(b,2);
+          });d[i]=clamp(r)*255;d[i+1]=clamp(g)*255;d[i+2]=clamp(b)*255;
+        }x.putImageData(img,0,0);return out;
+      };
+      const proDraw=draw;
+      draw=function(){proDraw();if(!active||showBefore||!prefs.maskOverlay||prefs.tab!=='masks')return;cx.save();cx.strokeStyle=prefs.accent;cx.lineWidth=Math.max(2,cv.width/500);cx.setLineDash([12,8]);[active.s.local0,active.s.local1,active.s.local2].forEach(function(m){if(!m.enabled)return;cx.beginPath();if(m.kind===0)cx.ellipse(m.x/100*cv.width,m.y/100*cv.height,m.radius/100*cv.width,m.radius/100*cv.height,0,0,Math.PI*2);else{const a=m.angle*Math.PI/180;cx.moveTo(m.x/100*cv.width-Math.sin(a)*cv.width,m.y/100*cv.height+Math.cos(a)*cv.height);cx.lineTo(m.x/100*cv.width+Math.sin(a)*cv.width,m.y/100*cv.height-Math.cos(a)*cv.height);}cx.stroke();});cx.restore();};
+      // Workspace palette and panel organisation, portable through existing workspaces.
+      const palette=sec('settings','Interface designer');settingSelect(palette,'Typeface','fontFamily',['Segoe UI','Arial','Tahoma','Verdana','monospace']);
+      ['panel','panel2','head','border','text','muted','input','library'].forEach(function(k){const r=document.createElement('div');r.className='row two';const l=document.createElement('label');l.textContent={panel:'Inspector',panel2:'Toolbar',head:'Selected surface',border:'Dividers',text:'Text',muted:'Secondary text',input:'Input surface',library:'Library'}[k];const i=document.createElement('input');i.type='color';i.setAttribute('aria-label',l.textContent+' colour');const current=getComputedStyle(document.body).getPropertyValue('--'+k).trim();i.value=prefs.customPalette[k]||(/^#[0-9a-f]{6}$/i.test(current)?current:'#222324');i.oninput=function(){prefs.customPalette[k]=i.value;applyPrefs();};r.append(l,i);palette.append(r);});
+      btn(palette,'Reset custom palette',any(function(){prefs.customPalette={};applyPrefs();}));
+      const compare=sec('settings','Comparison');settingRange(compare,'Split position','comparePosition',0,100);
+      const organiser=sec('settings','Panel organisation',true);
+      const sectionList=document.createElement('div');sectionList.className='section-organiser';organiser.append(sectionList);
+      function saveOrder(){document.querySelectorAll('.pane').forEach(function(p){prefs.panelOrder[p.id]=Array.from(p.children).map(function(s){return s.dataset.section;});});safeWrite('rs_prefs',prefs);}
+      document.querySelectorAll('.pane').forEach(function(p){Array.from(p.children).forEach(function(s,i){s.dataset.section=p.id+':'+i;const header=s.querySelector('h4');if(!header)return;header.draggable=true;header.addEventListener('dragstart',function(e){e.dataTransfer.setData('text/plain',s.dataset.section);});s.ondragover=function(e){e.preventDefault();};s.ondrop=function(e){e.preventDefault();const id=e.dataTransfer.getData('text/plain'),other=Array.from(p.children).find(function(el){return el.dataset.section===id;});if(other&&other!==s){p.insertBefore(other,s);saveOrder();}};
+        if(p.id==='p-settings')return;
+        const row=document.createElement('div');row.className='organiser-row';const label=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.checked=!prefs.hiddenSections.includes(s.dataset.section);c.onchange=function(){prefs.hiddenSections=prefs.hiddenSections.filter(function(id){return id!==s.dataset.section;});if(!c.checked)prefs.hiddenSections.push(s.dataset.section);applyPrefs();};label.append(c,document.createTextNode(' '+header.textContent));row.append(label);[['↑',-1],['↓',1]].forEach(function(v){const b=document.createElement('button');b.className='tb icon';b.textContent=v[0];b.title=v[1]<0?'Move panel up':'Move panel down';b.onclick=function(){if(v[1]<0&&s.previousElementSibling)p.insertBefore(s,s.previousElementSibling);if(v[1]>0&&s.nextElementSibling)p.insertBefore(s.nextElementSibling,s);saveOrder();};row.append(b);});sectionList.append(row);
+      });});
+      const searchRow=document.createElement('div');searchRow.className='inspector-search';searchRow.innerHTML='<input type="search" aria-label="Find adjustments" placeholder="Find an adjustment…">';$('#tabs').after(searchRow);
+      searchRow.firstChild.oninput=function(){const q=this.value.trim().toLowerCase();document.querySelectorAll('.pane').forEach(function(p){p.classList.toggle('search-results',!!q);p.style.display=q?'block':'';p.querySelectorAll('.sec').forEach(function(s){s.style.display=q&&!s.textContent.toLowerCase().includes(q)?'none':'';});});if(!q)showTab(prefs.tab);};
+      const command=document.createElement('div');command.className='modal';command.id='commandPalette';command.innerHTML='<div class="dialog command-dialog"><input type="search" aria-label="Search commands" placeholder="Search commands…"><div class="command-list"></div></div>';document.body.append(command);
+      const commandButton=document.createElement('button');commandButton.className='tb icon';commandButton.textContent='⌕';commandButton.title='Command palette (Ctrl+K)';commandButton.setAttribute('aria-label','Command palette');$('#workspaceButton').before(commandButton);
+      function openCommands(){command.style.display='flex';command.querySelector('input').value='';fillCommands('');command.querySelector('input').focus();}
+      function fillCommands(q){const list=command.querySelector('.command-list');list.innerHTML='';const actions=[['Open photographs',function(){$('#bOpen').click();}],['Export photographs',function(){$('#bExport').click();}],['Undo adjustment',undo],['Redo adjustment',redo],['Reset photograph',resetEdits],['Save recipe',saveRecipe],['Before / after',function(){$('#bCmp').click();}],['Focus workspace',function(){$('#menuFocus').click();}]];TABS.forEach(function(t){actions.push(['Show '+t[1],function(){showTab(t[0]);}]);});actions.filter(function(a){return a[0].toLowerCase().includes(q.toLowerCase());}).forEach(function(a){const b=document.createElement('button');b.className='tb';b.textContent=a[0];b.onclick=function(){command.style.display='none';a[1]();};list.append(b);});}
+      commandButton.onclick=openCommands;command.querySelector('input').oninput=function(){fillCommands(this.value);};command.onclick=function(e){if(e.target===command)command.style.display='none';};command.addEventListener('keydown',function(e){if(e.key==='Enter'){const b=command.querySelector('.command-list button');if(b)b.click();}if(e.key==='Escape')command.style.display='none';});document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openCommands();}});
 
       applyPrefs();
       syncPrefsUI();
