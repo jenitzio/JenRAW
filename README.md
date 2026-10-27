@@ -102,4 +102,4 @@ Contributions are welcome. Before opening a pull request:
 
 ## License
 
-The licence is Apache 2.0
+The license is Apache 2.0
